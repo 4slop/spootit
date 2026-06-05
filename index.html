@@ -811,11 +811,16 @@
     if (!src) return; // preload failed, skip
 
     // Size canvas to fit within viewport
+    const dpr  = window.devicePixelRatio || 1;
     const maxW = Math.min(canvas.parentElement.clientWidth, 960);
     const maxH = window.innerHeight - 130;
     const scale = Math.min(maxW / src.naturalWidth, maxH / src.naturalHeight);
-    canvas.width  = Math.round(src.naturalWidth  * scale);
-    canvas.height = Math.round(src.naturalHeight * scale);
+    const cssW  = Math.round(src.naturalWidth  * scale);
+    const cssH  = Math.round(src.naturalHeight * scale);
+    canvas.width  = cssW * dpr;
+    canvas.height = cssH * dpr;
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = cssH + 'px';
 
     canvas.style.opacity = '0';
     ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
