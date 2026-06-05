@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sPOOt it!</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:  #2ecc71;
+      --yellow: #f1c40f;
+      --red:    #e74c3c;
+      --blue:   #3498db;
+      --bg:     #0d0d0f;
+      --panel:  #16161a;
+      --border: #2a2a35;
+    }
+
+    body {
+      font-family: 'Exo 2', sans-serif;
+      background: var(--bg);
+      color: #eee;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Animated background particles ───────────────────── */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Screens ──────────────────────────────────────────── */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(24px);
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .screen.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+    .screen.exit {
+      opacity: 0;
+      transform: translateY(-24px);
+      pointer-events: none;
+    }
+
+    /* ── Landing ─────────────────────────────────────────── */
+    #landing-title {
+      font-size: clamp(3rem, 8vw, 6rem);
+      font-weight: 900;
+      letter-spacing: -2px;
+      color: #fff;
+      animation: titleGlow 3s ease-in-out infinite alternate;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+    }
+    #landing-title .title-eyes {
+      font-size: 0.85em;
+      line-height: 1;
+      margin: 0 2px;
+    }
+    @keyframes titleGlow {
+      from { filter: drop-shadow(0 0 10px rgba(255,255,255,0.6)) drop-shadow(0 0 24px rgba(46,204,113,0.5)); }
+      to   { filter: drop-shadow(0 0 20px rgba(255,255,255,0.95)) drop-shadow(0 0 48px rgba(46,204,113,0.9)) drop-shadow(0 0 80px rgba(46,204,113,0.4)); }
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      opacity: 0.65;
+      text-align: center;
+      max-width: 380px;
+      line-height: 1.6;
+      margin-bottom: 6px;
+    }
+
+    /* ── Primary button ──────────────────────────────────── */
+    .btn-primary {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #1a7a42, var(--green));
+      color: #fff;
+      font-family: inherit;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      border: none;
+      border-radius: 50px;
+      padding: 15px 52px;
+      margin-top: 32px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(46,204,113,0.35);
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(46,204,113,0.5); }
+    .btn-primary:hover::before { opacity: 1; }
+    .btn-primary:active { transform: scale(0.97) translateY(0); }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: rgba(255,255,255,0.5);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 8px 24px;
+      border-radius: 50px;
+      cursor: pointer;
+      margin-top: 18px;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-secondary:hover { border-color: #555; color: #eee; }
+
+    /* ── Level selector ──────────────────────────────────── */
+    #screen-level h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      opacity: 0.6;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .level-grid {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-level {
+      position: relative;
+      background: var(--panel);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 28px 24px;
+      width: 185px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .btn-level::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-level[data-level="easy"]::after   { background: radial-gradient(circle at 50% 0%, rgba(46,204,113,0.12), transparent 70%); }
+    .btn-level[data-level="medium"]::after { background: radial-gradient(circle at 50% 0%, rgba(241,196,15,0.12), transparent 70%); }
+    .btn-level[data-level="hard"]::after   { background: radial-gradient(circle at 50% 0%, rgba(231,76,60,0.12), transparent 70%); }
+
+    .btn-level:hover { transform: translateY(-4px); }
+    .btn-level:hover::after { opacity: 1; }
+    .btn-level[data-level="easy"]:hover   { border-color: var(--green);  box-shadow: 0 8px 24px rgba(46,204,113,0.2); }
+    .btn-level[data-level="medium"]:hover { border-color: var(--yellow); box-shadow: 0 8px 24px rgba(241,196,15,0.2); }
+    .btn-level[data-level="hard"]:hover   { border-color: var(--red);    box-shadow: 0 8px 24px rgba(231,76,60,0.2); }
+    .btn-level:active { transform: scale(0.97); }
+
+    .level-icon { font-size: 2rem; line-height: 1; }
+    .level-name {
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .btn-level[data-level="easy"]   .level-name { color: var(--green); }
+    .btn-level[data-level="medium"] .level-name { color: var(--yellow); }
+    .btn-level[data-level="hard"]   .level-name { color: var(--red); }
+    .level-desc {
+      font-size: 0.75rem;
+      opacity: 0.5;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* ── Loading ──────────────────────────────────────────── */
+    #loading-indicator {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-top: 24px;
+    }
+    #loading-indicator.visible { display: flex; }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #1e1e24;
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #load-error {
+      display: none;
+      color: var(--red);
+      font-size: 0.82rem;
+      margin-top: 12px;
+      max-width: 340px;
+      text-align: center;
+      opacity: 0.85;
+      line-height: 1.5;
+    }
+
+    /* ── Full-screen loading overlay ─────────────────────── */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #loading-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #loading-overlay .load-label {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.5;
+    }
+    #loading-overlay .load-paw {
+      font-size: 2.5rem;
+      animation: pawBounce 0.7s ease-in-out infinite alternate;
+    }
+    @keyframes pawBounce {
+      from { transform: translateY(0) scale(1); }
+      to   { transform: translateY(-10px) scale(1.15); }
+    }
+    #load-bar-wrap {
+      width: 280px;
+      height: 8px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    #load-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1a7a42, var(--green));
+      border-radius: 99px;
+      transition: width 0.2s ease;
+    }
+    #load-count {
+      font-size: 0.85rem;
+      opacity: 0.4;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Game screen ──────────────────────────────────────── */
+    #screen-game {
+      padding: 12px 16px 16px;
+      gap: 10px;
+      justify-content: flex-start;
+    }
+
+    #game-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      max-width: 960px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 18px;
+    }
+
+    /* Lives */
+    #lives-display { display: flex; gap: 4px; }
+    .heart {
+      font-size: 1.5rem;
+      line-height: 1;
+      transition: transform 0.15s, opacity 0.25s;
+      display: inline-block;
+    }
+    .heart.lost {
+      opacity: 0.15;
+      filter: grayscale(1);
+    }
+    .heart.shake {
+      animation: heartShake 0.7s ease;
+    }
+    @keyframes heartShake {
+      0%        { transform: scale(1) rotate(0deg) translateY(0); }
+      10%       { transform: scale(2) rotate(-25deg) translateY(-12px); }
+      25%       { transform: scale(1.8) rotate(20deg) translateY(-8px); }
+      40%       { transform: scale(1.6) rotate(-18deg) translateY(-6px); }
+      55%       { transform: scale(1.4) rotate(14deg) translateY(-3px); }
+      70%       { transform: scale(1.2) rotate(-8deg) translateY(-1px); }
+      85%       { transform: scale(1.1) rotate(4deg) translateY(0); }
+      100%      { transform: scale(1) rotate(0deg) translateY(0); }
+    }
+
+    /* Progress paws */
+    #progress-dots {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+    .dot {
+      font-size: 1rem;
+      line-height: 1;
+      opacity: 0.2;
+      transition: opacity 0.25s, transform 0.25s, filter 0.25s;
+      display: inline-block;
+    }
+    .dot.done    { opacity: 0.7; }
+    .dot.current { opacity: 1; transform: scale(1.25); filter: drop-shadow(0 0 4px rgba(255,255,255,0.6)); }
+
+    /* Timer */
+    #timer-display {
+      margin-left: auto;
+      font-size: 1.3rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.5px;
+      color: #fff;
+      transition: color 0.3s;
+    }
+    #timer-display.urgent { color: var(--red); animation: timerPulse 0.5s ease infinite alternate; }
+    @keyframes timerPulse {
+      from { opacity: 1; }
+      to   { opacity: 0.6; }
+    }
+
+    /* Image area */
+    #game-image-wrap {
+      width: 100%;
+      max-width: 960px;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      position: relative;
+      cursor: crosshair;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #game-img-bg {
+      position: absolute;
+      inset: -20px;
+      width: calc(100% + 40px);
+      height: calc(100% + 40px);
+      object-fit: cover;
+      filter: blur(28px) brightness(0.45) saturate(1.4);
+      transform: scale(1.05);
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+
+    #game-img {
+      display: block;
+      user-select: none;
+      transition: opacity 0.15s ease;
+      position: relative;
+      z-index: 1;
+      cursor: crosshair;
+    }
+
+    /* ── Popups ───────────────────────────────────────────── */
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .popup-overlay.visible { display: flex; }
+
+    .popup-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 44px 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.7); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .popup-emoji { font-size: 3.5rem; line-height: 1; animation: popEmoji 0.5s 0.15s cubic-bezier(0.175,0.885,0.32,1.5) both; }
+    @keyframes popEmoji {
+      from { transform: scale(0) rotate(-20deg); }
+      to   { transform: scale(1) rotate(0deg); }
+    }
+
+    .popup-box h2 {
+      font-size: 1.9rem;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+    .popup-box p { font-size: 0.95rem; opacity: 0.6; line-height: 1.6; }
+
+    .popup-stat {
+      font-size: 1.15rem;
+      font-weight: 700;
+      opacity: 1 !important;
+      color: #fff;
+      background: rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 8px 20px;
+      width: 100%;
+    }
+
+    /* star burst on win */
+    .popup-overlay.visible .popup-box::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, var(--green), transparent, var(--blue));
+      opacity: 0;
+      z-index: -1;
+      animation: borderGlow 2s 0.3s ease forwards;
+    }
+    @keyframes borderGlow {
+      0%   { opacity: 0; }
+      40%  { opacity: 0.6; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<!-- ── LOADING OVERLAY ────────────────────────────────── -->
+<div id="loading-overlay">
+  <div class="load-paw">🐾</div>
+  <div class="load-label">Loading photos…</div>
+  <div id="load-bar-wrap"><div id="load-bar"></div></div>
+  <div id="load-count">0 / 9</div>
+</div>
+
+<!-- ── LANDING ─────────────────────────────────────────── -->
+<div id="screen-landing" class="screen active">
+  <div id="landing-title">sP<span class="title-eyes">👀</span>t it!</div>
+  <p class="subtitle">Because every dog walk comes with a hidden side quest</p>
+  <button class="btn-primary" id="btn-start">▶ &nbsp;Play</button>
+</div>
+
+<!-- ── LEVEL SELECT ────────────────────────────────────── -->
+<div id="screen-level" class="screen">
+  <h2>Select Difficulty</h2>
+  <div class="level-grid">
+    <button class="btn-level" data-level="easy">
+      <span class="level-icon">🌿</span>
+      <span class="level-name">Poo-bie</span>
+    </button>
+    <button class="btn-level" data-level="medium">
+      <span class="level-icon">🔥</span>
+      <span class="level-name">Poo-fessional</span>
+    </button>
+    <button class="btn-level" data-level="hard">
+      <span class="level-icon">💀</span>
+      <span class="level-name">Poo-xpert</span>
+    </button>
+  </div>
+
+  <p id="load-error"></p>
+  <button class="btn-secondary" id="btn-back">← Back</button>
+</div>
+
+<!-- ── GAME ────────────────────────────────────────────── -->
+<div id="screen-game" class="screen">
+  <div id="game-header">
+    <div id="lives-display">
+      <span class="heart" id="heart-1">💩</span>
+      <span class="heart" id="heart-2">💩</span>
+      <span class="heart" id="heart-3">💩</span>
+    </div>
+    <div id="progress-dots"></div>
+    <div id="timer-display">0.0s</div>
+  </div>
+  <div id="game-image-wrap">
+    <img id="game-img-bg" src="" alt="">
+    <canvas id="game-img"></canvas>
+  </div>
+</div>
+
+<!-- ── CONGRATS ────────────────────────────────────────── -->
+<div id="popup-congrats" class="popup-overlay">
+  <div class="popup-box">
+    <div class="popup-emoji">🎉</div>
+    <h2>POOxellent!</h2>
+    <p class="popup-stat" id="congrats-time"></p>
+    <p class="popup-stat" id="congrats-level"></p>
+    <button class="btn-primary" id="btn-play-again">Play Again</button>
+  </div>
+</div>
+
+<!-- ── GAME OVER ───────────────────────────────────────── -->
+<div id="popup-gameover" class="popup-overlay">
+  <div class="popup-box">
+    <div class="popup-emoji">💔</div>
+    <h2>Game Over</h2>
+    <p>No poobags left. Better luck next time!</p>
+    <p class="popup-stat" id="gameover-level"></p>
+    <button class="btn-primary" id="btn-try-again">Try Again</button>
+  </div>
+</div>
+
+<script>
+  // ── Background particle canvas ─────────────────────────
+  (function() {
+    const canvas = document.getElementById('bg-canvas');
+    const ctx    = canvas.getContext('2d');
+    let W, H, particles;
+
+    function resize() {
+      W = canvas.width  = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+
+    function init() {
+      resize();
+      particles = Array.from({ length: 180 }, () => makeParticle());
+    }
+
+    function makeParticle() {
+      const poo = Math.random() < 0.22;
+      return {
+        x:    Math.random() * W,
+        y:    Math.random() * H,
+        r:    Math.random() * 1.5 + 0.4,
+        vx:   (Math.random() - 0.5) * 0.25,
+        vy:   (Math.random() - 0.5) * 0.25,
+        a:    poo ? Math.random() * 0.45 + 0.25 : Math.random() * 0.35 + 0.05,
+        poo,
+        size: poo ? Math.random() * 18 + 14 : 0,
+        rot:  Math.random() * Math.PI * 2,
+        rv:   (Math.random() - 0.5) * 0.01,
+      };
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, W, H);
+      for (const p of particles) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = W;
+        if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H;
+        if (p.y > H) p.y = 0;
+        if (p.poo) {
+          p.rot += p.rv;
+          ctx.save();
+          ctx.globalAlpha = p.a;
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.font = `${p.size}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('💩', 0, 0);
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${p.a})`;
+          ctx.fill();
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener('resize', resize);
+    init();
+    tick();
+  })();
+
+  // ── Screen management ──────────────────────────────────
+  let currentScreen = 'landing';
+  const screenEls = {
+    landing: document.getElementById('screen-landing'),
+    level:   document.getElementById('screen-level'),
+    game:    document.getElementById('screen-game'),
+  };
+
+  function showScreen(name) {
+    const prev = screenEls[currentScreen];
+    if (prev) { prev.classList.add('exit'); setTimeout(() => prev.classList.remove('active', 'exit'), 380); }
+    currentScreen = name;
+    const next = screenEls[name];
+    // Small delay so exit animation plays
+    setTimeout(() => { next.classList.add('active'); }, 30);
+  }
+
+  // ── Game state ─────────────────────────────────────────
+  const gameState = {
+    level:       null,
+    images:      [],
+    current:     0,
+    lives:       3,
+    startTime:   null,
+    timerHandle: null,
+    locked:      false,   // prevent double-clicks during transition
+  };
+
+  // ── Filename parser ────────────────────────────────────
+  function parseImageFilename(filename) {
+    const parts = filename.split('_');
+    return {
+      filename,
+      seq:        parts[0],
+      difficulty: parts[1],
+      x:          parseFloat(parts[2]),
+      y:          parseFloat(parts[3]),
+      w:          parseFloat(parts[4]),
+      h:          parseFloat(parts[5]),
+      url:        `images/${filename}`,
+      element:    null,
+    };
+  }
+
+  const FILENAME_RE = /\d{3}_[ABC]_[\d.]+_[\d.]+_[\d.]+_[\d.]+\.jpg/g;
+
+  async function loadFromDirectoryListing() {
+    const res = await fetch('images/');
+    if (!res.ok) throw new Error(`Directory listing unavailable: ${res.status}`);
+    const html = await res.text();
+    const matches = [...html.matchAll(FILENAME_RE)].map(m => m[0]);
+    const unique  = [...new Set(matches)];
+    if (unique.length === 0) throw new Error('No tagged images found in directory listing');
+    return unique.map(parseImageFilename);
+  }
+
+  async function loadFromManifest() {
+    const res = await fetch('images/manifest.json');
+    if (!res.ok) throw new Error(`manifest.json not found: ${res.status}`);
+    const data = await res.json();
+    return data.images.map(parseImageFilename);
+  }
+
+  async function loadManifest() {
+    try {
+      return await loadFromDirectoryListing();
+    } catch (e) {
+      console.info('[sPOOt] Directory listing unavailable, falling back to manifest.json:', e.message);
+      return await loadFromManifest();
+    }
+  }
+
+  function pickRandom(arr, n) {
+    return [...arr].sort(() => Math.random() - 0.5).slice(0, Math.min(n, arr.length));
+  }
+
+  function selectImages(all, level) {
+    const byDiff = { A: [], B: [], C: [] };
+    for (const img of all) if (byDiff[img.difficulty]) byDiff[img.difficulty].push(img);
+    const mixes = { easy:{A:6,B:3,C:0}, medium:{A:3,B:3,C:3}, hard:{A:0,B:3,C:6} };
+    const mix = mixes[level];
+    return [
+      ...pickRandom(byDiff.A, mix.A),
+      ...pickRandom(byDiff.B, mix.B),
+      ...pickRandom(byDiff.C, mix.C),
+    ].sort(() => Math.random() - 0.5);
+  }
+
+  function preloadImages(imgs, onProgress) {
+    let done = 0;
+    return Promise.all(imgs.map(imgObj => new Promise(resolve => {
+      const el = new Image();
+      el.onload  = () => { imgObj.element = el; onProgress(++done, imgs.length); resolve(); };
+      el.onerror = () => { onProgress(++done, imgs.length); resolve(); };
+      el.src = imgObj.url;
+    })));
+  }
+
+  // ── Start game ─────────────────────────────────────────
+  function showLoadingOverlay(total) {
+    const overlay = document.getElementById('loading-overlay');
+    document.getElementById('load-bar').style.width = '0%';
+    document.getElementById('load-count').textContent = `0 / ${total}`;
+    overlay.classList.add('visible');
+  }
+
+  function updateLoadingOverlay(done, total) {
+    document.getElementById('load-bar').style.width = `${(done / total) * 100}%`;
+    document.getElementById('load-count').textContent = `${done} / ${total}`;
+  }
+
+  function hideLoadingOverlay() {
+    document.getElementById('loading-overlay').classList.remove('visible');
+  }
+
+  async function startGame(level) {
+    gameState.level = level;
+    const loadError = document.getElementById('load-error');
+    loadError.style.display = 'none';
+    document.querySelectorAll('.btn-level').forEach(b => b.disabled = true);
+
+    try {
+      const all      = await loadManifest();
+      const selected = selectImages(all, level);
+      showLoadingOverlay(selected.length);
+      await preloadImages(selected, updateLoadingOverlay);
+      gameState.images = selected;
+      // Brief pause so bar reaches 100% visibly before transitioning
+      setTimeout(() => { hideLoadingOverlay(); startGameplay(); }, 300);
+    } catch (err) {
+      console.error(err);
+      hideLoadingOverlay();
+      loadError.textContent = 'Could not load images. Serve via a local web server, not file://. Try: python3 -m http.server 8080';
+      loadError.style.display = 'block';
+    } finally {
+      document.querySelectorAll('.btn-level').forEach(b => b.disabled = false);
+    }
+  }
+
+  // ── Gameplay ───────────────────────────────────────────
+  function startGameplay() {
+    gameState.current   = 0;
+    gameState.lives     = 3;
+    gameState.locked    = false;
+    gameState.startTime = Date.now();
+    updateLivesDisplay();
+    buildProgressDots();
+    showScreen('game');
+    startTimer();
+    // Small delay so screen transition is done before image appears
+    setTimeout(() => showCurrentImage(), 200);
+  }
+
+  function buildProgressDots() {
+    const wrap = document.getElementById('progress-dots');
+    wrap.innerHTML = '';
+    for (let i = 0; i < gameState.images.length; i++) {
+      const d = document.createElement('span');
+      d.className = 'dot' + (i === 0 ? ' current' : '');
+      d.id = `dot-${i}`;
+      d.textContent = '🐾';
+      wrap.appendChild(d);
+    }
+  }
+
+  function updateProgressDots() {
+    for (let i = 0; i < gameState.images.length; i++) {
+      const d = document.getElementById(`dot-${i}`);
+      if (!d) continue;
+      d.className = 'dot';
+      if (i < gameState.current)  d.classList.add('done');
+      if (i === gameState.current) d.classList.add('current');
+    }
+  }
+
+  function showCurrentImage() {
+    const imgObj = gameState.images[gameState.current];
+    const canvas = document.getElementById('game-img');
+    const ctx    = canvas.getContext('2d');
+    const src    = imgObj.element; // already-decoded HTMLImageElement
+
+    if (!src) return; // preload failed, skip
+
+    // Size canvas to fit within viewport
+    const maxW = Math.min(canvas.parentElement.clientWidth, 960);
+    const maxH = window.innerHeight - 130;
+    const scale = Math.min(maxW / src.naturalWidth, maxH / src.naturalHeight);
+    canvas.width  = Math.round(src.naturalWidth  * scale);
+    canvas.height = Math.round(src.naturalHeight * scale);
+
+    canvas.style.opacity = '0';
+    ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+    requestAnimationFrame(() => { canvas.style.opacity = '1'; });
+
+    // Background blur image still uses src url (cached, fine for bg)
+    document.getElementById('game-img-bg').src = imgObj.url;
+
+    updateProgressDots();
+  }
+
+  // ── Timer ──────────────────────────────────────────────
+  function startTimer() {
+    stopTimer();
+    const timerEl = document.getElementById('timer-display');
+    gameState.timerHandle = setInterval(() => {
+      const elapsed = (Date.now() - gameState.startTime) / 1000;
+      timerEl.textContent = elapsed.toFixed(1) + 's';
+      timerEl.classList.toggle('urgent', elapsed >= 60);
+    }, 100);
+  }
+
+  function stopTimer() {
+    clearInterval(gameState.timerHandle);
+    gameState.timerHandle = null;
+    document.getElementById('timer-display').classList.remove('urgent');
+  }
+
+  function elapsedSeconds() {
+    return ((Date.now() - gameState.startTime) / 1000).toFixed(1);
+  }
+
+  // ── Lives display ──────────────────────────────────────
+  function updateLivesDisplay(shakeIndex) {
+    for (let i = 1; i <= 3; i++) {
+      const h = document.getElementById(`heart-${i}`);
+      h.classList.toggle('lost', i > gameState.lives);
+      if (i === shakeIndex) {
+        h.classList.remove('shake');
+        void h.offsetWidth; // reflow to restart animation
+        h.classList.add('shake');
+        setTimeout(() => h.classList.remove('shake'), 750);
+      }
+    }
+  }
+
+  // ── Click handler ──────────────────────────────────────
+  document.getElementById('game-image-wrap').addEventListener('click', (e) => {
+    if (gameState.images.length === 0 || gameState.locked) return;
+
+    const imgEl = document.getElementById('game-img');
+    const rect  = imgEl.getBoundingClientRect();
+    const normX = (e.clientX - rect.left)  / rect.width;
+    const normY = (e.clientY - rect.top)   / rect.height;
+    if (normX < 0 || normX > 1 || normY < 0 || normY > 1) return;
+
+    const { x, y, w, h } = gameState.images[gameState.current];
+    const isHit = normX >= x && normX <= x + w && normY >= y && normY <= y + h;
+
+    if (isHit) handleCorrectClick(e.clientX, e.clientY);
+    else       handleWrongClick(e.clientX, e.clientY);
+  });
+
+  // ── Hit marker ─────────────────────────────────────────
+  function showHitMarker(clientX, clientY) {
+    const wrapEl   = document.getElementById('game-image-wrap');
+    const wrapRect = wrapEl.getBoundingClientRect();
+
+    // Ripple ring
+    const ring = document.createElement('div');
+    const lx = clientX - wrapRect.left;
+    const ly = clientY - wrapRect.top;
+    ring.style.cssText = [
+      'position:absolute', 'pointer-events:none',
+      `left:${lx}px`, `top:${ly}px`,
+      'width:0', 'height:0',
+      'border-radius:50%',
+      'border:3px solid #2ecc71',
+      'transform:translate(-50%,-50%)',
+      'opacity:1',
+      'transition:width 0.4s ease-out,height 0.4s ease-out,opacity 0.4s ease-out',
+      'z-index:2',
+    ].join(';');
+    wrapEl.appendChild(ring);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      ring.style.width = '80px'; ring.style.height = '80px'; ring.style.opacity = '0';
+    }));
+    setTimeout(() => ring.remove(), 450);
+
+    // Check mark
+    const div = document.createElement('div');
+    div.textContent = '✓';
+    div.style.cssText = [
+      'position:absolute', 'pointer-events:none',
+      `left:${lx}px`, `top:${ly}px`,
+      'transform:translate(-50%,-50%) scale(0.5)',
+      'font-size:2.2rem', 'font-weight:900',
+      'color:#2ecc71',
+      'text-shadow:0 0 10px rgba(46,204,113,0.8)',
+      'opacity:1',
+      'transition:opacity 0.35s,transform 0.35s',
+      'z-index:2',
+    ].join(';');
+    wrapEl.appendChild(div);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      div.style.transform = 'translate(-50%,-50%) scale(1.6)';
+      div.style.opacity   = '0';
+    }));
+    setTimeout(() => div.remove(), 400);
+  }
+
+  function handleCorrectClick(clientX, clientY) {
+    gameState.locked = true;
+    showHitMarker(clientX, clientY);
+    gameState.current++;
+
+    if (gameState.current >= gameState.images.length) {
+      stopTimer();
+      const time  = elapsedSeconds();
+      const level = gameState.level;
+      document.getElementById('congrats-time').textContent  = `⏱  ${time}s`;
+      document.getElementById('congrats-level').textContent = `🎯  ${level.charAt(0).toUpperCase() + level.slice(1)}`;
+      setTimeout(() => {
+        document.getElementById('popup-congrats').classList.add('visible');
+        gameState.locked = false;
+      }, 380);
+    } else {
+      setTimeout(() => {
+        showCurrentImage();
+        gameState.locked = false;
+      }, 260);
+    }
+  }
+
+  // ── Miss marker ────────────────────────────────────────
+  function showMissMarker(clientX, clientY) {
+    const wrapEl   = document.getElementById('game-image-wrap');
+    const wrapRect = wrapEl.getBoundingClientRect();
+    const lx = clientX - wrapRect.left;
+    const ly = clientY - wrapRect.top;
+
+    document.getElementById('miss-marker')?.remove();
+
+    const div = document.createElement('div');
+    div.id = 'miss-marker';
+    div.textContent = '✗';
+    div.style.cssText = [
+      'position:absolute', 'pointer-events:none',
+      `left:${lx}px`, `top:${ly}px`,
+      'transform:translate(-50%,-50%) scale(0.5)',
+      'font-size:2.4rem', 'font-weight:900',
+      'color:#e74c3c',
+      'text-shadow:0 0 10px rgba(231,76,60,0.8)',
+      'opacity:1',
+      'transition:opacity 0.45s,transform 0.45s',
+      'z-index:2',
+    ].join(';');
+    wrapEl.appendChild(div);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      div.style.transform = 'translate(-50%,-50%) scale(1.8)';
+      div.style.opacity   = '0';
+    }));
+    setTimeout(() => div.remove(), 500);
+  }
+
+  function handleWrongClick(clientX, clientY) {
+    showMissMarker(clientX, clientY);
+    gameState.lives--;
+    const shakeIdx = gameState.lives + 1; // the heart that just died
+    updateLivesDisplay(shakeIdx);
+
+    if (gameState.lives <= 0) {
+      stopTimer();
+      const level = gameState.level;
+      document.getElementById('gameover-level').textContent =
+        `🎯  ${level.charAt(0).toUpperCase() + level.slice(1)}`;
+      setTimeout(() => {
+        document.getElementById('popup-gameover').classList.add('visible');
+      }, 300);
+    }
+  }
+
+  // ── Navigation ─────────────────────────────────────────
+  document.getElementById('btn-start').addEventListener('click', () => showScreen('level'));
+  document.getElementById('btn-back').addEventListener('click',  () => showScreen('landing'));
+
+  document.querySelectorAll('.btn-level').forEach(btn => {
+    btn.addEventListener('click', () => startGame(btn.dataset.level));
+  });
+
+  document.getElementById('btn-play-again').addEventListener('click', () => {
+    document.getElementById('popup-congrats').classList.remove('visible');
+    showScreen('level');
+  });
+
+  document.getElementById('btn-try-again').addEventListener('click', () => {
+    document.getElementById('popup-gameover').classList.remove('visible');
+    showScreen('level');
+  });
+</script>
+</body>
+</html>
